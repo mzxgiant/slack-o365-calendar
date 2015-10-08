@@ -1,7 +1,7 @@
 var logger = require('./logger'),
     nconf = require('../config'),
     Slack = require('slack-client'),
-    OOO_User = require('./ooo_user'),
+    OOOUser = require('./ooo_user'),
     RSVP = require('rsvp');
 /**
  * @module Bot
@@ -33,9 +33,8 @@ var Bot = (function () {
         users = users || Object.keys(this.ooo_users);
         var promises = [],
             self = this;
-        users.forEach(function (user){
+        users.forEach(function (user) {
             if (self.ooo_users[user]) {
-                console.log('ANNOUNCE OFFLINE');
                 found = true;
                 var promise = self.ooo_users[user].isOOO();
                 promises.push(promise);
@@ -43,16 +42,14 @@ var Bot = (function () {
                 promise.then(function (isOOO) {
                     console.log('IS OOO RESOLVED WITH ' + isOOO);
                     if (isOOO) {
-
                         retVal += '> ' + user;
-                        if (self.ooo_users[user].message){
+                        if (self.ooo_users[user].message) {
                             retVal += ': ' + self.ooo_users[user].message + '\n';
                         }
                     }
 
                     return retVal;
                 });
-
             }
         });
 
@@ -115,22 +112,21 @@ var Bot = (function () {
         var type = message.type, text = message.text;
         var channelName = (channel && channel.is_channel) ? '#' : '';
         channelName = channelName + (channel ? channel.name : 'UNKNOWN_CHANNEL');
-        var userName = (user && user.name) ? '@' + user.name : 'UNKNOWN_USER';
+        var userName = (user && user.profile && user.profile.email) ? '@' + user.profile.email : 'UNKNOWN_USER';
 
         if (type === 'message' && (text !== null) && (channel !== null)) {
             // Channel is a direct message
             if (channel.is_im) {
                 logger.info('' + userName + ' sent DM: ' + text);
                 if (!this.ooo_users[userName]) {
-                    this.ooo_users[userName] = new OOO_User(userName, user.profile.email);
+                    this.ooo_users[userName] = new OOOUser(userName, user.profile.email);
                 }
                 response = this.ooo_users[userName].handleMessage(text);
                 if (response) {
                     channel.send(response);
                     logger.info('@' + this.slack.self.name + ' responded to ' + userName + ' with \'' + response + '\'');
                 }
-            }
-            else {
+            } else {
                 // Search message for user mentions
                 var matches = text.match(/@\w+/g);
                 if (matches) {
@@ -148,8 +144,7 @@ var Bot = (function () {
                         // If we are the mentioned user
                         if (translatedUsers.indexOf('@' + this.slack.self.name) !== -1) {
                             response = this.handleDirectCommand(channel, text);
-                        }
-                        else {
+                        } else {
                             // Get OOO responses for users
                             response = this.announceOffline(translatedUsers);
                         }
@@ -163,8 +158,7 @@ var Bot = (function () {
                     }
                 }
             }
-        }
-        else {
+        } else {
             var typeError = type !== 'message' ? 'unexpected type ' + type + '.' : null;
             var textError = text === null ? 'text was undefined.' : null;
             var channelError = channel === null ? 'channel was undefined.' : null;
